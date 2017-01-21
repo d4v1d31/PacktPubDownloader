@@ -1,12 +1,11 @@
 #!/usr/bin/python
 import argparse
-
-import requests
-import lxml.html
-import re
-import yaml
 import os.path
-import urllib2
+import re
+
+import lxml.html
+import requests
+import yaml
 
 config_file = "config.yml"
 
