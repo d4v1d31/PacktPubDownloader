@@ -1,0 +1,6 @@
+# set your packpub.com login credentials
+email: 'superuser@example.com'
+password: 'supersecretpassword'
+booklib: 'lib'
+filetype: 'pdf'
+session_token: '.session_token'

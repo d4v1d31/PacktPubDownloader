@@ -1,0 +1,6 @@
+config.yml
+lib
+.session_token
+*.pdf
+*.epub
+*.mobi
