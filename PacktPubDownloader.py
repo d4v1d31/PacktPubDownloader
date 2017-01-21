@@ -43,7 +43,7 @@ parser.add_argument('-d', '--download',
                     help='downloads all books available in my books')
 parser.add_argument('-b', '--booklib',
                     default=default_booklib,
-                    help='sets the directory to download')
+                    help='sets the download destination')
 parser.add_argument('-p', '--password',
                     required=required,
                     default=default_password,
