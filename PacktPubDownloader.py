@@ -105,10 +105,11 @@ def download_all_books(token):
 
 # downloads one book
 def download_book(book, session_cookie):
-    title = str(book.get('title'))
+    title = str(book.get('title').encode('ascii', 'ignore'))  # fix some coding issue
     if title != '':
-        print('Downloading: ' + str(book.get('title')))
+        print('Downloading: ' + title)
         url = 'https://www.packtpub.com/ebook_download/' + str(book.get('nid')) + '/' + file_type
+
         filename = book_lib_dir + '/' + title.replace(' ', '_') + '.' + file_type
         if os.path.isfile(filename):
             print('[skip]')
@@ -146,6 +147,6 @@ test_lib_dir()
 print('Logging in...')
 session_token = get_session_id(email, password)
 print('Try to claim the daily free book...')
-claim_free_book(session_token)
+#claim_free_book(session_token)
 print('Start downloading all books...')
 download_all_books(session_token)
