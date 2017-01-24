@@ -15,6 +15,8 @@ if not os.path.isfile(config_file):
     required = True
     default_filetype = 'pdf'
     default_booklib = 'lib'
+    default_sessionfile = '.session'
+    default_cache_session = True
     default_email = None
     default_password = None
 else:
@@ -24,6 +26,8 @@ else:
     default_booklib = cfg.get('booklib')
     default_email = cfg.get('email')
     default_password = cfg.get('password')
+    default_sessionfile = '.session'
+    default_cache_session = True
 
 # http header
 headers = {'user-agent': 'Mozilla/5.0 (Android; Mobile; rv:13.0) Gecko/13.0 Firefox/13.0'}
@@ -33,7 +37,7 @@ headers = {'user-agent': 'Mozilla/5.0 (Android; Mobile; rv:13.0) Gecko/13.0 Fire
 parser = argparse.ArgumentParser(
         description='Packtpub Downloader is a python script to download ebooks from packtpub.com and claim the '
                     'daily free ebook.')
-parser.add_argument('-c','--claim-free-book',
+parser.add_argument('-c', '--claim-free-book',
                     dest='claim',
                     action='store_true',
                     help='claims the free book')
@@ -55,12 +59,19 @@ parser.add_argument("-t", "--file-type", type=str,
                     choices=['pdf', 'epub', 'mobi'],
                     default=default_filetype,
                     help="stets the type to download")
+parser.add_argument("-s", "--session-file", type=str,
+                    default=default_sessionfile,
+                    help="stets the type to download")
+parser.add_argument('-C', '--disable-cache-session',
+                    dest='cache_session' ,
+                    action='store_false',
+                    default=default_cache_session,
+                    help='disables session caching by file')
 args = parser.parse_args()
 
 
-# loads login form, logs in and extracts session token
-def get_session_id(mail, pw):
-    # load form data
+def send_login_form(mail, pw):
+    # load form da
     r = requests.get('http://www.packtpub.com/', headers=headers)
     if r.status_code != 200:
         exit_error("It wasn't possible to load the login form", r.status_code)
@@ -84,23 +95,56 @@ def get_session_id(mail, pw):
 
     # send login request
     r = requests.post('https://www.packtpub.com/', cookies=r.cookies, data=values, headers=headers)
-
     if r.status_code != 200:
         exit_error("It wasn't possible to login", r.status_code)
 
-    # extract session toke
-    js = lxml.html.fromstring(r.content).findall('head/script')
-    session_token = "null"
+    # extract session token out of js
+    token = extract_sess_id(r.content)
+    if token == "null":
+        exit_error("The Login doesn't succeed", r.status_code)
+    return token
+
+
+def extract_sess_id(site_content):
+    # extract session token
+    return extract_data('sid', site_content)
+
+
+def extract_data(attr, site_content):
+    js = lxml.html.fromstring(site_content).findall('head/script')
+    token = "null"
 
     for j in js:
-        m = re.search('"sid":"[A-Za-z0-9]+"', j.text_content())
+        m = re.search('"' + attr + '":"[A-Za-z0-9@.\-_]+"', j.text_content())
         if m:
-            session_token = m.group(0).split('"')[3]
+            token = m.group(0).split('"')[3]
             break
+    return token
 
-    if session_token == "null":
-        exit_error("The Login doesn't succeed", r.status_code)
-    return session_token
+
+# loads login form, logs in and extracts session token
+def get_session_id(mail, pw):
+    # load session token if cached
+    if os.path.isfile(args.session_file):
+        # load last session token
+        token = read_session()
+        # test session token
+        session_cookie = create_session_cookie(token)
+        r = requests.get('https://www.packtpub.com', cookies=session_cookie, headers=headers)
+        # extract session token out of js
+        test_mail = extract_data('mail', r.content)
+        print(test_mail)
+        if test_mail != args.email:
+            print("Old token doesn't work.")
+            token = send_login_form(mail, pw)
+    else:
+        # get new session token
+        print('Logging in...')
+        token = send_login_form(mail, pw)
+
+    # cache token
+    write_session(token)
+    return token
 
 
 # create session cookie
@@ -182,10 +226,20 @@ def test_lib_dir(booklib):
         os.mkdir(booklib)
 
 
+def read_session():
+    sess_file = open(args.session_file, 'r')
+    token = sess_file.readline()
+    token = token.replace("\n", '')
+    return token
+
+
+def write_session(token):
+    sess_file = open(args.session_file, 'w+')
+    sess_file.write(token)
+
+# Main program
 if args.claim or args.download:
     test_lib_dir(args.booklib)
-    # setup session
-    print('Logging in...')
     session_token = get_session_id(args.email, args.password)
     if args.claim:
         print('Try to claim the daily free book...')
