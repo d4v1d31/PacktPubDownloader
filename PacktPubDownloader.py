@@ -61,8 +61,8 @@ parser.add_argument("-t", "--file-type", type=str,
                     help="stets the type to download")
 parser.add_argument("-s", "--session-file", type=str,
                     default=default_sessionfile,
-                    help="stets the type to download")
-parser.add_argument('-C', '--disable-cache-session',
+                    help="stets the file to cache session token")
+parser.add_argument('-C', '--disable-session-cache',
                     dest='cache_session' ,
                     action='store_false',
                     default=default_cache_session,
@@ -125,7 +125,7 @@ def extract_data(attr, site_content):
 # loads login form, logs in and extracts session token
 def get_session_id(mail, pw):
     # load session token if cached
-    if os.path.isfile(args.session_file):
+    if args.cache_session and os.path.isfile(args.session_file):
         # load last session token
         token = read_session()
         # test session token
@@ -143,7 +143,8 @@ def get_session_id(mail, pw):
         token = send_login_form(mail, pw)
 
     # cache token
-    write_session(token)
+    if args.cache_session:
+        write_session(token)
     return token
 
 
@@ -204,12 +205,9 @@ def download_book(book, session_cookie, i, n):
 # downloads a file by url and notifies the progress
 def download_file(url, dest, cookies):
     response = requests.get(url, cookies=cookies, headers=headers, stream=True)
-    #file = urllib2.urlopen(url, cookies=cookies, headers=headers)
-    #with open(dest, 'wb') as output:
-    #    output.write(file.read())
     with open(dest, 'wb') as f:
         for chunk in response.iter_content(chunk_size=1024):
-            if chunk: # filter out keep-alive new chunks
+            if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
 
 
