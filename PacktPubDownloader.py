@@ -9,31 +9,27 @@ import yaml
 
 config_file = "config.yml"
 
+default = {'filetype': 'pdf',
+           'booklib': 'lib',
+           'sessionfile': '.session',
+           'cache_session': True,
+           'email': None,
+           'password': None,
+           'download_code': False}
+
 # load config data
 if not os.path.isfile(config_file):
     print('No config.yml found: Please set full configuration through params!')
     required = True
-    default_filetype = 'pdf'
-    default_booklib = 'lib'
-    default_sessionfile = '.session'
-    default_cache_session = True
-    default_email = None
-    default_password = None
-    default_download_code = False
 else:
     required = False
     cfg = yaml.load(open(config_file, "r+"))
-    default_filetype = cfg.get('filetype')
-    default_booklib = cfg.get('booklib')
-    default_email = cfg.get('email')
-    default_password = cfg.get('password')
-    default_sessionfile = '.session'
-    default_cache_session = True
-    default_download_code = False
+    for c in default.keys():
+        if cfg.get(c):
+            default[c] = cfg.get(c)
 
 # http header
 headers = {'user-agent': 'Mozilla/5.0 (Android; Mobile; rv:13.0) Gecko/13.0 Firefox/13.0'}
-
 
 # setup cli params
 parser = argparse.ArgumentParser(
@@ -49,35 +45,36 @@ parser.add_argument('-d', '--download',
 parser.add_argument('-z', '--code',
                     dest='download_code',
                     action='store_true',
-                    default=default_download_code,
+                    default=default['download_code'],
                     help='downloads code package for every book')
 parser.add_argument('-b', '--booklib',
-                    default=default_booklib,
+                    default=default['booklib'],
                     help='sets the download destination')
 parser.add_argument('-p', '--password',
                     required=required,
-                    default=default_password,
+                    default=default['password'],
                     help='sets the password for your packtpub account')
 parser.add_argument('-e', '--email',
-                    default=default_email,
+                    default=default['email'],
                     required=required,
                     help='sets the email for your packtpub account')
 parser.add_argument("-t", "--file-type", type=str,
                     choices=['pdf', 'epub', 'mobi'],
-                    default=default_filetype,
+                    default=default['filetype'],
                     help="stets the type to download")
 parser.add_argument("-s", "--session-file", type=str,
-                    default=default_sessionfile,
+                    default=default['sessionfile'],
                     help="stets the file to cache session token")
 parser.add_argument('-C', '--disable-session-cache',
                     dest='cache_session',
                     action='store_false',
-                    default=default_cache_session,
+                    default=default['cache_session'],
                     help='disables session caching by file')
 args = parser.parse_args()
 
 
 def send_login_form(mail, pw):
+    print('Logging in...')
     # load form
     r = requests.get('http://www.packtpub.com/', headers=headers)
     if r.status_code != 200:
@@ -140,13 +137,11 @@ def get_session_id(mail, pw):
         r = requests.get('https://www.packtpub.com', cookies=session_cookie, headers=headers)
         # extract session token out of js
         test_mail = extract_data('mail', r.content)
-        print(test_mail)
         if test_mail != args.email:
             print("Old token doesn't work.")
             token = send_login_form(mail, pw)
     else:
         # get new session token
-        print('Logging in...')
         token = send_login_form(mail, pw)
 
     # cache token
@@ -206,19 +201,25 @@ def download_book(book, session_cookie, i, n):
 
         filename = args.booklib + '/' + title.replace(' ', '_') + '.' + args.file_type
         if os.path.isfile(filename):
-            print('[skip]')
+            print('Download ' + args.file_type + '... \t[skip]')
         else:
+            print('Download ' + args.file_type + '... ')
             download_file(url, filename, session_cookie)
 
 
+# downloads zip file with code
 def download_code(book, session_cookie, i, n):
     t = book.get('title')
-    print('Download code...')
+    filename = args.booklib + '/' + t + '.zip'
     someas = book.findall('.//a[@href]')
-    for a in someas:
-        link = a.get('href')
-        if re.match('/code_download/[0-9]*', link):
-            download_file('https://www.packtpub.com' + link, t + '.zip', session_cookie)
+    if os.path.isfile(filename):
+        print('Download code... \t[skip]')
+    else:
+        for a in someas:
+            link = a.get('href')
+            if re.match('/code_download/[0-9]*', link):
+                print('Download code...')
+                download_file('https://www.packtpub.com' + link, filename, session_cookie)
 
 
 # downloads a file by url and notifies the progress
