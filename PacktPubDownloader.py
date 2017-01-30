@@ -19,6 +19,7 @@ if not os.path.isfile(config_file):
     default_cache_session = True
     default_email = None
     default_password = None
+    default_download_code = False
 else:
     required = False
     cfg = yaml.load(open(config_file, "r+"))
@@ -28,6 +29,7 @@ else:
     default_password = cfg.get('password')
     default_sessionfile = '.session'
     default_cache_session = True
+    default_download_code = False
 
 # http header
 headers = {'user-agent': 'Mozilla/5.0 (Android; Mobile; rv:13.0) Gecko/13.0 Firefox/13.0'}
@@ -44,6 +46,11 @@ parser.add_argument('-c', '--claim-free-book',
 parser.add_argument('-d', '--download',
                     action='store_true',
                     help='downloads all books available in my books')
+parser.add_argument('-z', '--code',
+                    dest='download_code',
+                    action='store_true',
+                    default=default_download_code,
+                    help='downloads code package for every book')
 parser.add_argument('-b', '--booklib',
                     default=default_booklib,
                     help='sets the download destination')
@@ -63,7 +70,7 @@ parser.add_argument("-s", "--session-file", type=str,
                     default=default_sessionfile,
                     help="stets the file to cache session token")
 parser.add_argument('-C', '--disable-session-cache',
-                    dest='cache_session' ,
+                    dest='cache_session',
                     action='store_false',
                     default=default_cache_session,
                     help='disables session caching by file')
@@ -71,7 +78,7 @@ args = parser.parse_args()
 
 
 def send_login_form(mail, pw):
-    # load form da
+    # load form
     r = requests.get('http://www.packtpub.com/', headers=headers)
     if r.status_code != 200:
         exit_error("It wasn't possible to load the login form", r.status_code)
@@ -185,6 +192,8 @@ def download_all_books(token):
     for book in book_entries:
         i += 1
         download_book(book, session_cookie, i, book_number)
+        if args.download_code:
+            download_code(book,session_cookie, i, book_number)
 
 
 # downloads one book
@@ -200,6 +209,16 @@ def download_book(book, session_cookie, i, n):
             print('[skip]')
         else:
             download_file(url, filename, session_cookie)
+
+
+def download_code(book, session_cookie, i, n):
+    t = book.get('title')
+    print('Download code...')
+    someas = book.findall('.//a[@href]')
+    for a in someas:
+        link = a.get('href')
+        if re.match('/code_download/[0-9]*', link):
+            download_file('https://www.packtpub.com' + link, t + '.zip', session_cookie)
 
 
 # downloads a file by url and notifies the progress
