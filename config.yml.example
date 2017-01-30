@@ -3,4 +3,6 @@ email: 'superuser@example.com'
 password: 'supersecretpassword'
 booklib: 'lib'
 filetype: 'pdf'
-session_token: '.session_token'
+cache_session: True
+sessionfile: '.session_token'
+download_code: False

@@ -34,7 +34,8 @@ headers = {'user-agent': 'Mozilla/5.0 (Android; Mobile; rv:13.0) Gecko/13.0 Fire
 # setup cli params
 parser = argparse.ArgumentParser(
         description='Packtpub Downloader is a python script to download ebooks from packtpub.com and claim the '
-                    'daily free ebook.')
+                    'daily free ebook.',
+                    epilog='Example: PacktPubDownloader.py -cdz -e EMAIL -p PASSWORD')
 parser.add_argument('-c', '--claim-free-book',
                     dest='claim',
                     action='store_true',
